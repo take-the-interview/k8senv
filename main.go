@@ -47,7 +47,12 @@ func getClientSet(configFile string) {
 	return
 }
 
-func registerWeight(w int) {
+func calculateWeight(wStr string) (w int) {
+	w = 1000
+	if weight, err := strconv.Atoi(wStr); err == nil {
+		w = weight
+	}
+
 	for _, k := range keys {
 		if w == k {
 			return
@@ -57,6 +62,8 @@ func registerWeight(w int) {
 		data[w] = make(map[string]string)
 	}
 	keys = append(keys, w)
+
+	return
 }
 
 func getCM(cmName string) {
@@ -66,17 +73,10 @@ func getCM(cmName string) {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "**** Loading ConfigMap %s : %d items\n", cmName, len(cm.Data))
-
-	var appConfWeight int
 	appConfWeightStr, _ := cm.ObjectMeta.Labels["app-conf-weight"]
-	if appConfWeightStr == "" {
-		appConfWeight = 0
-	} else {
-		appConfWeight, _ = strconv.Atoi(appConfWeightStr)
-	}
+	appConfWeight := calculateWeight(appConfWeightStr)
 
-	registerWeight(appConfWeight)
+	fmt.Fprintf(os.Stderr, "**** Loading ConfigMap %s [weight: %d] : %d items\n", cmName, appConfWeight, len(cm.Data))
 
 	for cmKey, cmVal := range cm.Data {
 		data[appConfWeight][cmKey] = cmVal
