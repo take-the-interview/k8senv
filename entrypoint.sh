@@ -28,7 +28,12 @@ if [ -z "${CMD}" ];then
 fi
 
 function exec_command {
-  if [ -f "Startupfile" ];then
+  if [ "${CMD}" = "dummy" ];then
+    while true; do
+      echo -e "HTTP/1.1 200 OK\n\n $(date)" | nc -l 0.0.0.0 8080 
+    done
+    exit 0
+  elif [ -f "Startupfile" ];then
     while IFS= read line
     do
       local label=${line%%:*}
