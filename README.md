@@ -28,8 +28,6 @@ ADD Gemfile Gemfile.lock /app/
 
 WORKDIR /app
 
-ARG GITHUB_AUTH_USERTOKEN
-
 RUN apt-get update -qq && \
   DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential libpq-dev libxml2-dev nodejs git postgresql-client curl netcat && \
   curl -sL ${EPOINT_URL} > /ep && chmod 755 /ep && \
