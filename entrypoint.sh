@@ -30,7 +30,7 @@ fi
 function exec_command {
   if [ "${CMD}" = "dummy" ];then
     while true; do
-      echo -e "HTTP/1.1 200 OK\n\n $(date)" | nc -l 0.0.0.0 8080 
+      echo -e "HTTP/1.1 200 OK\n\n $(date)" | nc -lNn 0.0.0.0 8080
     done
     exit 0
   elif [ -f "Startupfile" ];then
