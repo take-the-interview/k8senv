@@ -73,6 +73,11 @@ func getCM(cmName string) {
 		return
 	}
 
+	isShep, _ := cm.ObjectMeta.Annotations["conveyiq.com/shep"]
+	if isShep == "" {
+		return
+	}
+
 	appConfWeightStr, _ := cm.ObjectMeta.Labels["app-conf-weight"]
 	appConfWeight := calculateWeight(appConfWeightStr)
 
