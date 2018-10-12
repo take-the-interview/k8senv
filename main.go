@@ -125,6 +125,10 @@ func main() {
 	}
 
 	for _, item := range cms.Items {
+		isShep, _ := item.ObjectMeta.Annotations["conveyiq.com/shep"]
+		if isShep == "" {
+			continue
+		}
 		getCM(item.ObjectMeta.Name)
 	}
 
