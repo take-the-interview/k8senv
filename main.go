@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -16,6 +17,8 @@ import (
 var (
 	appname   string
 	namespace string
+	podname   = ""
+	podnum    = ""
 	clientset *kubernetes.Clientset
 	data      = map[int]map[string]string{}
 	keys      = []int{}
@@ -88,6 +91,17 @@ func getCM(cmName string) {
 	}
 }
 
+func getPODnum() {
+	if podname == "" {
+		return
+	}
+	chunks := strings.Split(podname, "-")
+	last := chunks[len(chunks)-1]
+	if _, err := strconv.Atoi(last); err == nil {
+		podnum = last
+	}
+}
+
 func getPODInfo() {
 	var ok bool
 	namespace, ok = os.LookupEnv("K8S_POD_NAMESPACE")
@@ -99,6 +113,31 @@ func getPODInfo() {
 	if !ok || appname == "" {
 		fmt.Fprintf(os.Stderr, "Unable to get namespace from env variable K8S_APP_NAME.\n")
 		os.Exit(1)
+	}
+	podname, ok = os.LookupEnv("K8S_POD_NAME")
+	getPODnum()
+}
+
+func filterKeypair(k string, v string) (string, string, bool) {
+	if strings.HasPrefix(k, "PERINSTANCE_") {
+		if podnum == "" {
+			return k, v, false
+		}
+
+		chunks := strings.SplitN(k, "_", 3)
+		if len(chunks) != 3 {
+			return k, v, false
+		}
+
+		envID := chunks[1]
+		if podnum != envID {
+			return k, v, false
+		}
+
+		keyName := chunks[2]
+		return keyName, v, true
+	} else {
+		return k, v, true
 	}
 }
 
@@ -138,6 +177,10 @@ func main() {
 
 	for _, k := range keys {
 		for envKey, envVal := range data[k] {
+			var ok bool
+			if envKey, envVal, ok = filterKeypair(envKey, envVal); !ok {
+				continue
+			}
 			var envLine string
 			if *export {
 				envLine = fmt.Sprintf("export %s=%s", envKey, envVal)
