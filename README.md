@@ -12,3 +12,15 @@ It's expecting ConfigMap to have label "app-conf-weight" set (defaults to 1000 i
 specify the order of ENV variables loading (for interpolation purposes). Lower weight number get's loaded first.
 
 Entrypoint.sh executes/evals k8senv on container startup setting ordered env variables in current process and than runs the application process.
+
+# Per-Instance ENV support
+
+For K8S statefulset it's possible to specify env variable to load only for
+specified instance. This depends on downward-api and presence of
+K8S_POD_NAME.
+
+E.g.
+
+instance: media-receiver-0
+envVariable: PERINSTANCE_0_DATA=something
+exposing: DATA=something
