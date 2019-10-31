@@ -24,3 +24,18 @@ E.g.
 instance: media-receiver-0
 envVariable: PERINSTANCE_0_DATA=something
 exposing: DATA=something
+
+# AWS Secrets Manager support
+
+To reference secret stored in AWS Secrets Manager in env variable use the
+following format:
+
+{secret:secret_path:secret_key}
+
+Where:
+- secret_path - is name of the secret in Secrets Manager
+- secret_key - is name of the Key in JSON data stored in Secrets Manager secret
+
+k8senv will automatically figure out which secret from AWS Secrets Manager
+to fetch and interpolate env variables.
+ 
