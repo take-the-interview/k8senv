@@ -1,2 +1,4 @@
 k8senv
 k8senv.linux.amd64
+k8senv.darwin.amd64
+**/*~

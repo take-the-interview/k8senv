@@ -1,13 +1,19 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
+	cnf "shep/config"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -19,8 +25,10 @@ var (
 	namespace string
 	podname   = ""
 	podnum    = ""
+	envname   = ""
 	clientset *kubernetes.Clientset
 	data      = map[int]map[string]string{}
+	secrets   = map[string]map[string]interface{}{}
 	keys      = []int{}
 )
 
@@ -69,6 +77,65 @@ func calculateWeight(wStr string) (w int) {
 	return
 }
 
+func getSecrets(secretPath string) {
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(cnf.GetAWSRegion()),
+	}))
+	svc := secretsmanager.New(sess)
+
+	input := &secretsmanager.GetSecretValueInput{
+		SecretId: aws.String(secretPath),
+	}
+
+	fmt.Fprintf(os.Stderr, "**** Loading AWS Secrets %s\n", secretPath)
+	result, err := svc.GetSecretValue(input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "**** Problem Getting AWS Secrets %s, %v\n", secretPath, err)
+	} else {
+		secretsMap := make(map[string]interface{})
+		err = json.Unmarshal([]byte(*result.SecretString), &secretsMap)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "**** Problem Parsing AWS Secrets %s, %v\n", secretPath, err)
+		} else {
+			secrets[secretPath] = secretsMap
+		}
+	}
+}
+
+func injectSecrets() {
+	if envname == "" {
+		return
+	}
+
+	for weight, node := range data {
+		for envKey, envVal := range node {
+			if strings.Contains(envVal, "{secret:") {
+				re := regexp.MustCompile(`{secret:.*?:.*?}`)
+				matches := re.FindAllString(envVal, -1)
+				if matches != nil {
+					for _, match := range matches {
+						// fmt.Printf("-> %d - %s\n", idx, match[8:len(match)-1])
+						chunks := strings.Split(match[8:len(match)-1], ":")
+						secretPath := chunks[0]
+						secretKey := chunks[1]
+
+						if _, ok := secrets[secretPath]; !ok {
+							getSecrets(secretPath)
+						}
+
+						if secretVal, ok := secrets[secretPath][secretKey]; ok {
+							re := regexp.MustCompile(match)
+							data[weight][envKey] = string(re.ReplaceAll([]byte(envVal), []byte(secretVal.(string))))
+						} else {
+							fmt.Fprintf(os.Stderr, "**** Uknown secret for %s=%s\n", envKey, envVal)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 func getCM(cmName string) {
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
 	if err != nil {
@@ -114,6 +181,7 @@ func getPODInfo() {
 		fmt.Fprintf(os.Stderr, "Unable to get namespace from env variable K8S_APP_NAME.\n")
 		os.Exit(1)
 	}
+	envname, ok = os.LookupEnv("K8S_ENV_NAME")
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	getPODnum()
 }
@@ -170,6 +238,8 @@ func main() {
 		}
 		getCM(item.ObjectMeta.Name)
 	}
+
+	injectSecrets()
 
 	fi, _ := os.Stdout.Stat()
 
