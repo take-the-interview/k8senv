@@ -27,15 +27,25 @@ exposing: DATA=something
 
 # AWS Secrets Manager support
 
+By default k8senv is looking for env variable SECRETS_PATH
+which indicates the path in AWS Secrets Manager from which to pull Secret Env Variables.
+Example: runtime/edev/stacks/e1/dora
+
+If SECRETS_PATH is not set it's going to default to
+runtime/${K8S_ENV_NAME}/stacks/${K8S_POD_NAMESPACE}/${K8S_APP_NAME}
+
+It will pull with weight:0 secret from AWS Secrets Manager from the
+${SECRETS_PATH}/env which containts json with key/value pairs of each secret.
+These key/value pairs are then exported as ENV variables.
+
 To reference secret stored in AWS Secrets Manager in env variable use the
-following format:
+following format (interpolation works):
 
 {secret:secret_path:secret_key}
 
 Where:
-- secret_path - is name of the secret in Secrets Manager
+- secret_path - is name of the secret in Secrets Manager. If it is omitted (e.g. {secret::secret_key}), it will default to runtime/env.K8S_ENV_NAME/stacks/env.K8S_POD_NAMESPACE/env.K8S_APP_NAME/env.
 - secret_key - is name of the Key in JSON data stored in Secrets Manager secret
 
 k8senv will automatically figure out which secret from AWS Secrets Manager
 to fetch and interpolate env variables.
- 

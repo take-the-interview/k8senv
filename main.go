@@ -21,15 +21,16 @@ import (
 )
 
 var (
-	appname   string
-	namespace string
-	podname   = ""
-	podnum    = ""
-	envname   = ""
-	clientset *kubernetes.Clientset
-	data      = map[int]map[string]string{}
-	secrets   = map[string]map[string]interface{}{}
-	keys      = []int{}
+	appname     string
+	namespace   string
+	podname     = ""
+	podnum      = ""
+	envname     = ""
+	secretspath = ""
+	clientset   *kubernetes.Clientset
+	data        = map[int]map[string]string{}
+	secrets     = map[string]map[string]interface{}{}
+	keys        = []int{}
 )
 
 func getClientSet(configFile string) {
@@ -77,7 +78,7 @@ func calculateWeight(wStr string) (w int) {
 	return
 }
 
-func getSecrets(secretPath string) {
+func getSecrets(secretPath string) (secretsMap map[string]interface{}) {
 	sess := session.Must(session.NewSession(&aws.Config{
 		Region: aws.String(cnf.GetAWSRegion()),
 	}))
@@ -92,18 +93,17 @@ func getSecrets(secretPath string) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "**** Problem Getting AWS Secrets %s, %v\n", secretPath, err)
 	} else {
-		secretsMap := make(map[string]interface{})
 		err = json.Unmarshal([]byte(*result.SecretString), &secretsMap)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "**** Problem Parsing AWS Secrets %s, %v\n", secretPath, err)
-		} else {
-			secrets[secretPath] = secretsMap
 		}
 	}
+	return secretsMap
 }
 
 func injectSecrets() {
 	if envname == "" {
+		fmt.Fprintf(os.Stderr, "*** Empty envname, can't find secrets")
 		return
 	}
 
@@ -117,10 +117,13 @@ func injectSecrets() {
 						// fmt.Printf("-> %d - %s\n", idx, match[8:len(match)-1])
 						chunks := strings.Split(match[8:len(match)-1], ":")
 						secretPath := chunks[0]
+						if secretPath == "" {
+							secretPath = fmt.Sprintf("%s/env", secretspath)
+						}
 						secretKey := chunks[1]
 
 						if _, ok := secrets[secretPath]; !ok {
-							getSecrets(secretPath)
+							secrets[secretPath] = getSecrets(secretPath)
 						}
 
 						if secretVal, ok := secrets[secretPath][secretKey]; ok {
@@ -183,6 +186,10 @@ func getPODInfo() {
 	}
 	envname, ok = os.LookupEnv("K8S_ENV_NAME")
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
+	secretspath, ok = os.LookupEnv("SECRETS_PATH")
+	if !ok || secretspath == "" {
+		secretspath = fmt.Sprintf("runtime/%s/stacks/%s/%s", envname, namespace, appname)
+	}
 	getPODnum()
 }
 
@@ -229,6 +236,18 @@ func main() {
 
 	if err != nil {
 		panic(err.Error())
+	}
+
+	secretsEnvPath := fmt.Sprintf("%s/env", secretspath)
+	secrets[secretsEnvPath] = getSecrets(secretsEnvPath)
+
+	calculateWeight("0")
+
+	if _, ok := secrets[secretsEnvPath]; ok {
+		// data[weight][envKey] = string(re.ReplaceAll([]byte(envVal), []byte(secretVal.(string))))
+		for secretEnvKey, secretEnvVal := range secrets[secretsEnvPath] {
+			data[0][secretEnvKey] = secretEnvVal.(string)
+		}
 	}
 
 	for _, item := range cms.Items {
