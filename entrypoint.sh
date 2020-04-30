@@ -4,11 +4,31 @@ set -e
 
 function print_options {
   echo "Valid options:"
-  echo "  -v                : Be verbose"
+  echo "  Readiness/Liveness probe via file"
+  echo "  -h <time>           : heartbeat file expiration"
+  echo "  -f <heartbeat_file> : defaults to /dev/shm/heartbeat"
+  echo
+  echo "  -v                  : Be verbose"
 }
 
-while getopts "v" flag; do
+function heart_beat {
+  [ ! -f "${HEARTBEAT_FILE}" ] && { echo "${HEARTBEAT_FILE} does not exist."; exit 1; }
+  if [ $(( $(date +%s) - $(date -r $HEARTBEAT_FILE +%s) )) -gt $HEARTBEAT_TIMEOUT ];then
+    echo "No heartbeat in more than ${HEARTBEAT_TIMEOUT} seconds"
+    exit 2
+  fi
+  exit 0
+}
+HEARTBEAT_FILE="/dev/shm/heartbeat"
+
+while getopts "vh:f:" flag; do
   case "$flag" in
+    f)
+      HEARTBEAT_FILE=$OPTARG
+    ;;
+    h)
+      HEARTBEAT_TIMEOUT=$OPTARG
+    ;;
     v) VERBOSE="-verbose";;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -17,6 +37,8 @@ while getopts "v" flag; do
     ;;
   esac
 done
+[ ! -z $HEARTBEAT_TIMEOUT ] && heart_beat
+
 shift $((OPTIND-1))
 
 CMD="${@}"
