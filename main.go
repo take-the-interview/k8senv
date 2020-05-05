@@ -21,16 +21,17 @@ import (
 )
 
 var (
-	appname     string
-	namespace   string
-	podname     = ""
-	podnum      = ""
-	envname     = ""
-	secretspath = ""
-	clientset   *kubernetes.Clientset
-	data        = map[int]map[string]string{}
-	secrets     = map[string]map[string]interface{}{}
-	keys        = []int{}
+	appname       string
+	appglobalname string
+	namespace     string
+	podname       = ""
+	podnum        = ""
+	envname       = ""
+	secretspath   = ""
+	clientset     *kubernetes.Clientset
+	data          = map[int]map[string]string{}
+	secrets       = map[string]map[string]interface{}{}
+	keys          = []int{}
 )
 
 func getClientSet(configFile string) {
@@ -184,6 +185,11 @@ func getPODInfo() {
 		fmt.Fprintf(os.Stderr, "Unable to get namespace from env variable K8S_APP_NAME.\n")
 		os.Exit(1)
 	}
+	appglobalname, ok = os.LookupEnv("K8S_APPGLOBAL_NAME")
+	if !ok || appglobalname == "" {
+		appglobalname = appname
+	}
+
 	envname, ok = os.LookupEnv("K8S_ENV_NAME")
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	secretspath, ok = os.LookupEnv("SECRETS_PATH")
@@ -227,7 +233,7 @@ func main() {
 
 	getClientSet(*configFile)
 
-	labelSelector := fmt.Sprintf("app in (%s, all)", appname)
+	labelSelector := fmt.Sprintf("app in (%s, %s, all)", appname, appglobalname)
 	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
 		Limit:         100,
