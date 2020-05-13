@@ -26,7 +26,6 @@ var (
 	namespace     string
 	podname       = ""
 	podnum        = ""
-	envname       = ""
 	secretspath   = ""
 	clientset     *kubernetes.Clientset
 	data          = map[int]map[string]string{}
@@ -89,7 +88,6 @@ func getSecrets(secretPath string) (secretsMap map[string]interface{}) {
 		SecretId: aws.String(secretPath),
 	}
 
-	fmt.Fprintf(os.Stderr, "**** Loading AWS Secrets %s\n", secretPath)
 	result, err := svc.GetSecretValue(input)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "**** Problem Getting AWS Secrets %s, %v\n", secretPath, err)
@@ -103,11 +101,6 @@ func getSecrets(secretPath string) (secretsMap map[string]interface{}) {
 }
 
 func injectSecrets() {
-	if envname == "" {
-		fmt.Fprintf(os.Stderr, "*** Empty envname, can't find secrets")
-		return
-	}
-
 	for weight, node := range data {
 		for envKey, envVal := range node {
 			if strings.Contains(envVal, "{secret:") {
@@ -125,6 +118,7 @@ func injectSecrets() {
 
 						if _, ok := secrets[secretPath]; !ok {
 							secrets[secretPath] = getSecrets(secretPath)
+							fmt.Fprintf(os.Stderr, "**** Loading AWS Secrets %s [weight: 0] : %d items\n", secretPath, len(secrets[secretPath]))
 						}
 
 						if secretVal, ok := secrets[secretPath][secretKey]; ok {
@@ -190,11 +184,10 @@ func getPODInfo() {
 		appglobalname = appname
 	}
 
-	envname, ok = os.LookupEnv("K8S_ENV_NAME")
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	secretspath, ok = os.LookupEnv("SECRETS_PATH")
 	if !ok || secretspath == "" {
-		secretspath = fmt.Sprintf("runtime/%s/stacks/%s/%s", envname, namespace, appname)
+		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appname)
 	}
 	getPODnum()
 }
@@ -246,6 +239,8 @@ func main() {
 
 	secretsEnvPath := fmt.Sprintf("%s/env", secretspath)
 	secrets[secretsEnvPath] = getSecrets(secretsEnvPath)
+
+	fmt.Fprintf(os.Stderr, "**** Loading AWS Secrets %s [weight: 0] : %d items\n", secretsEnvPath, len(secrets[secretsEnvPath]))
 
 	calculateWeight("0")
 
