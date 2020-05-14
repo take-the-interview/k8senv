@@ -187,7 +187,7 @@ func getPODInfo() {
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	secretspath, ok = os.LookupEnv("SECRETS_PATH")
 	if !ok || secretspath == "" {
-		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appname)
+		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appglobalname)
 	}
 	getPODnum()
 }
