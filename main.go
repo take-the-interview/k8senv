@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	cnf "shep/config"
+	//cnf "shep/config"
 	"sort"
 	"strconv"
 	"strings"
 
+	cnf "github.com/take-the-interview/shep/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
@@ -231,6 +232,7 @@ func main() {
 		LabelSelector: labelSelector,
 		Limit:         100,
 	}
+
 	cms, err := clientset.CoreV1().ConfigMaps(namespace).List(listOptions)
 
 	if err != nil {
