@@ -14,12 +14,12 @@ build-linux:
 build-darwin:
 	GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags="-s -w" -o $(BINARY_NAME).darwin.amd64
 github-release:
-	ifndef TAG
-	$(error TAG env variable is not set)
-	endif
-	ifndef GITHUB_TOKEN
-	$(error GITHUB_TOKEN env variable is not set)
-	endif
+#	ifndef TAG
+#		$(error TAG env variable is not set)
+#	endif
+#	ifndef GITHUB_TOKEN
+#		$(error GITHUB_TOKEN env variable is not set)
+#	endif
 	github-release release --user take-the-interview --repo k8senv --tag $(TAG)
 	github-release upload --user take-the-interview --repo k8senv --tag $(TAG) \
 		--name "k8senv.linux.amd64" \
