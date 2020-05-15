@@ -13,6 +13,20 @@ build-linux:
 	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags="-s -w" -o $(BINARY_NAME).linux.amd64
 build-darwin:
 	GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags="-s -w" -o $(BINARY_NAME).darwin.amd64
+github-release:
+	ifndef TAG
+	$(error TAG env variable is not set)
+	endif
+	ifndef GITHUB_TOKEN
+	$(error GITHUB_TOKEN env variable is not set)
+	endif
+	github-release release --user take-the-interview --repo k8senv --tag $(TAG)
+	github-release upload --user take-the-interview --repo k8senv --tag $(TAG) \
+		--name "k8senv.linux.amd64" \
+		--file k8senv.linux.amd64
+	github-release upload --user take-the-interview --repo k8senv --tag $(TAG) \
+		--name "entrypoint.sh" \
+		--file entrypoint.sh
 clean:
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)

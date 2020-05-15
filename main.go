@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	cnf "github.com/take-the-interview/shep/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	cnf "github.com/take-the-interview/shep/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -23,7 +23,7 @@ import (
 
 var (
 	appname       string
-	appglobalname string
+	appfamilyname string
 	namespace     string
 	podname       = ""
 	podnum        = ""
@@ -180,15 +180,15 @@ func getPODInfo() {
 		fmt.Fprintf(os.Stderr, "Unable to get namespace from env variable K8S_APP_NAME.\n")
 		os.Exit(1)
 	}
-	appglobalname, ok = os.LookupEnv("K8S_APPGLOBAL_NAME")
-	if !ok || appglobalname == "" {
-		appglobalname = appname
+	appfamilyname, ok = os.LookupEnv("K8S_APP_FAMILY_NAME")
+	if !ok || appfamilyname == "" {
+		appfamilyname = appname
 	}
 
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	secretspath, ok = os.LookupEnv("SECRETS_PATH")
 	if !ok || secretspath == "" {
-		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appglobalname)
+		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appfamilyname)
 	}
 	getPODnum()
 }
@@ -227,7 +227,7 @@ func main() {
 
 	getClientSet(*configFile)
 
-	labelSelector := fmt.Sprintf("app in (%s, %s, all)", appname, appglobalname)
+	labelSelector := fmt.Sprintf("app in (%s, %s, all)", appname, appfamilyname)
 	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
 		Limit:         100,

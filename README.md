@@ -32,7 +32,7 @@ which indicates the path in AWS Secrets Manager from which to pull Secret Env Va
 Example: runtime/e1/dora
 
 If SECRETS_PATH is not set it's going to default to
-runtime/${K8S_POD_NAMESPACE}/${K8S_APP_NAME}
+runtime/${K8S_POD_NAMESPACE}/${K8S_APP_FAMILY_NAME}
 
 It will pull with weight:0 secret from AWS Secrets Manager from the
 ${SECRETS_PATH}/env which containts json with key/value pairs of each secret.
