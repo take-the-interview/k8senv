@@ -74,5 +74,7 @@ function exec_command {
   exit $EXIT_CODE
 }
 
-eval "$(k8senv -e ${VERBOSE})"
+
+DATA=$(k8senv -e ${VERBOSE})
+eval "${DATA}"
 exec_command
