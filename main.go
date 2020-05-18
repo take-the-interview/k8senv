@@ -94,7 +94,9 @@ func getSecrets(secretPath string) (secretsMap map[string]interface{}) {
 	result, err := svc.GetSecretValue(input)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "**** Problem Getting AWS Secrets %s, %v\n", secretPath, err)
-		exitCode = 1
+		if !strings.HasPrefix(err.Error(), "ResourceNotFoundException") {
+			exitCode = 1
+		}
 	} else {
 		err = json.Unmarshal([]byte(*result.SecretString), &secretsMap)
 		if err != nil {
