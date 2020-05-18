@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	//cnf "shep/config"
+
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	cnf "github.com/take-the-interview/shep/config"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -22,16 +24,16 @@ import (
 )
 
 var (
-	appname       string
-	appfamilyname string
-	namespace     string
-	podname       = ""
-	podnum        = ""
-	secretspath   = ""
-	clientset     *kubernetes.Clientset
-	data          = map[int]map[string]string{}
-	secrets       = map[string]map[string]interface{}{}
-	keys          = []int{}
+	appname     string
+	namespace   string
+	podname     = ""
+	podnum      = ""
+	secretspath = ""
+	clientset   *kubernetes.Clientset
+	data        = map[int]map[string]string{}
+	secrets     = map[string]map[string]interface{}{}
+	keys        = []int{}
+	exitCode    = 0
 )
 
 func getClientSet(configFile string) {
@@ -92,10 +94,12 @@ func getSecrets(secretPath string) (secretsMap map[string]interface{}) {
 	result, err := svc.GetSecretValue(input)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "**** Problem Getting AWS Secrets %s, %v\n", secretPath, err)
+		exitCode = 1
 	} else {
 		err = json.Unmarshal([]byte(*result.SecretString), &secretsMap)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "**** Problem Parsing AWS Secrets %s, %v\n", secretPath, err)
+			exitCode = 1
 		}
 	}
 	return secretsMap
@@ -139,6 +143,7 @@ func getCM(cmName string) {
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(cmName, metav1.GetOptions{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "**** Problem Loading ConfigMap %s : %s\n", cmName, err.Error())
+		exitCode = 1
 		return
 	}
 
@@ -180,15 +185,11 @@ func getPODInfo() {
 		fmt.Fprintf(os.Stderr, "Unable to get namespace from env variable K8S_APP_NAME.\n")
 		os.Exit(1)
 	}
-	appfamilyname, ok = os.LookupEnv("K8S_APP_FAMILY_NAME")
-	if !ok || appfamilyname == "" {
-		appfamilyname = appname
-	}
 
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	secretspath, ok = os.LookupEnv("SECRETS_PATH")
 	if !ok || secretspath == "" {
-		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appfamilyname)
+		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appname)
 	}
 	getPODnum()
 }
@@ -227,17 +228,39 @@ func main() {
 
 	getClientSet(*configFile)
 
-	labelSelector := fmt.Sprintf("app in (%s, %s, all)", appname, appfamilyname)
+	var err error
+	var cmlist *v1.ConfigMapList
+	var cms []v1.ConfigMap
+
+	// app label configmaps
+	labelSelector := fmt.Sprintf("app in (%s, all)", appname)
 	listOptions := metav1.ListOptions{
 		LabelSelector: labelSelector,
 		Limit:         100,
 	}
 
-	cms, err := clientset.CoreV1().ConfigMaps(namespace).List(listOptions)
+	cmlist, err = clientset.CoreV1().ConfigMaps(namespace).List(listOptions)
 
 	if err != nil {
 		panic(err.Error())
 	}
+
+	cms = append(cms, cmlist.Items...)
+
+	// app-<app_name> label configmaps
+	labelSelector = fmt.Sprintf("app-%s in (true, True, yes, Yes)", appname)
+	listOptions = metav1.ListOptions{
+		LabelSelector: labelSelector,
+		Limit:         100,
+	}
+
+	cmlist, err = clientset.CoreV1().ConfigMaps(namespace).List(listOptions)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	cms = append(cms, cmlist.Items...)
 
 	secretsEnvPath := fmt.Sprintf("%s/env", secretspath)
 	secrets[secretsEnvPath] = getSecrets(secretsEnvPath)
@@ -253,7 +276,7 @@ func main() {
 		}
 	}
 
-	for _, item := range cms.Items {
+	for _, item := range cms {
 		isShep, _ := item.ObjectMeta.Annotations["conveyiq.com/shep"]
 		if isShep == "" {
 			continue
@@ -284,5 +307,8 @@ func main() {
 				fmt.Fprintf(os.Stderr, "%s\n", envLine)
 			}
 		}
+	}
+	if exitCode > 0 {
+		os.Exit(exitCode)
 	}
 }
