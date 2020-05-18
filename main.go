@@ -244,7 +244,8 @@ func main() {
 	cmlist, err = clientset.CoreV1().ConfigMaps(namespace).List(listOptions)
 
 	if err != nil {
-		panic(err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to get ConfigMap with labelSelector %s. %v\n", labelSelector, err)
+		os.Exit(1)
 	}
 
 	cms = append(cms, cmlist.Items...)
@@ -259,7 +260,8 @@ func main() {
 	cmlist, err = clientset.CoreV1().ConfigMaps(namespace).List(listOptions)
 
 	if err != nil {
-		panic(err.Error())
+		fmt.Fprintf(os.Stderr, "Unable to get ConfigMap with labelSelector %s. %v\n", labelSelector, err)
+		os.Exit(1)
 	}
 
 	cms = append(cms, cmlist.Items...)
