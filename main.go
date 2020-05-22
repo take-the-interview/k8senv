@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+
 	//cnf "shep/config"
 
 	"sort"
@@ -16,7 +17,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
 	cnf "github.com/take-the-interview/shep/config"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -190,8 +191,8 @@ func getPODInfo() {
 
 	podname, ok = os.LookupEnv("K8S_POD_NAME")
 	secretspath, ok = os.LookupEnv("SECRETS_PATH")
-	if !ok || secretspath == "" {
-		secretspath = fmt.Sprintf("runtime/%s/%s", namespace, appname)
+	if !ok {
+		fmt.Fprint(os.Stderr, "No SECRETS_PATH set, I won't try to get secrets from secretsmanager\n")
 	}
 	getPODnum()
 }
@@ -266,18 +267,21 @@ func main() {
 
 	cms = append(cms, cmlist.Items...)
 
-	secretsEnvPath := fmt.Sprintf("%s/env", secretspath)
-	secrets[secretsEnvPath] = getSecrets(secretsEnvPath)
+	if secretspath != "" {
+		secretsEnvPath := fmt.Sprintf("%s/env", secretspath)
+		secrets[secretsEnvPath] = getSecrets(secretsEnvPath)
 
-	fmt.Fprintf(os.Stderr, "**** Loading AWS Secrets %s [weight: 0] : %d items\n", secretsEnvPath, len(secrets[secretsEnvPath]))
+		fmt.Fprintf(os.Stderr, "**** Loading AWS Secrets %s [weight: 0] : %d items\n", secretsEnvPath, len(secrets[secretsEnvPath]))
 
-	calculateWeight("0")
+		calculateWeight("0")
 
-	if _, ok := secrets[secretsEnvPath]; ok {
-		// data[weight][envKey] = string(re.ReplaceAll([]byte(envVal), []byte(secretVal.(string))))
-		for secretEnvKey, secretEnvVal := range secrets[secretsEnvPath] {
-			data[0][secretEnvKey] = secretEnvVal.(string)
+		if _, ok := secrets[secretsEnvPath]; ok {
+			// data[weight][envKey] = string(re.ReplaceAll([]byte(envVal), []byte(secretVal.(string))))
+			for secretEnvKey, secretEnvVal := range secrets[secretsEnvPath] {
+				data[0][secretEnvKey] = secretEnvVal.(string)
+			}
 		}
+
 	}
 
 	for _, item := range cms {
