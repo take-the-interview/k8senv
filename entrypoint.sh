@@ -75,7 +75,7 @@ function exec_command {
 }
 
 if [ -f "/etc/runtime.env" ];then
-    DATA=$(cat /runtime.env)
+    DATA=$(cat /etc/runtime.env)
 else
     DATA=$(k8senv -e ${VERBOSE})
 fi
