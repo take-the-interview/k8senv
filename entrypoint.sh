@@ -74,7 +74,10 @@ function exec_command {
   exit $EXIT_CODE
 }
 
-
-DATA=$(k8senv -e ${VERBOSE})
+if [ -f "/etc/runtime.env" ];then
+    DATA=$(cat /runtime.env)
+else
+    DATA=$(k8senv -e ${VERBOSE})
+fi
 eval "${DATA}"
 exec_command
