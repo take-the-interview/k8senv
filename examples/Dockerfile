@@ -1,4 +1,4 @@
-FROM ruby:2.5.1-slim
+FROM ruby:2.7.8-slim
 
 ENV PATH="/usr/local/bundle/bin:$PATH" \
     GEM_HOME="/usr/local/bundle" \
